@@ -8,8 +8,13 @@ import '../services/scribble_service.dart';
 
 class ScribbleCanvas extends StatefulWidget {
   final String userId;
+  final bool embedded;
 
-  const ScribbleCanvas({super.key, required this.userId});
+  const ScribbleCanvas({
+    super.key,
+    required this.userId,
+    this.embedded = false,
+  });
 
   @override
   State<ScribbleCanvas> createState() => _ScribbleCanvasState();
@@ -24,12 +29,15 @@ class _ScribbleCanvasState extends State<ScribbleCanvas> {
   List<Offset> _localPoints = [];
   final Map<String, List<Offset>> _remoteStrokes = {};
   DateTime _lastSentTime = DateTime.now();
+  bool _strokeReady = false;
+  String _status = 'Connecting...';
 
   StreamSubscription<DatabaseEvent>? _strokeSubscription;
 
   @override
   void initState() {
     super.initState();
+    _scribbleService.strokesRef(_roomId).keepSynced(true);
     _subscribeToRemoteStrokes();
   }
 
@@ -39,19 +47,68 @@ class _ScribbleCanvasState extends State<ScribbleCanvas> {
     super.dispose();
   }
 
-  void _onPanStart(DragStartDetails details) {
+  List<Offset> _parsePoints(dynamic rawPoints) {
+    if (rawPoints == null) return [];
+
+    if (rawPoints is List) {
+      return rawPoints
+          .map(
+            (p) => Offset(
+              (p['x'] as num).toDouble(),
+              (p['y'] as num).toDouble(),
+            ),
+          )
+          .toList();
+    }
+
+    if (rawPoints is Map) {
+      final sortedKeys = rawPoints.keys.map((k) => k.toString()).toList()
+        ..sort((a, b) => int.parse(a).compareTo(int.parse(b)));
+      return sortedKeys
+          .map((key) {
+            final p = rawPoints[key] as Map<dynamic, dynamic>;
+            return Offset(
+              (p['x'] as num).toDouble(),
+              (p['y'] as num).toDouble(),
+            );
+          })
+          .toList();
+    }
+
+    return [];
+  }
+
+  Future<void> _onPanStart(DragStartDetails details) async {
     _activeStrokeId = _scribbleService.generateStrokeId(_roomId);
     _localPoints = [details.localPosition];
-    _scribbleService.createStroke(
-      _roomId,
-      _activeStrokeId!,
-      widget.userId,
-      _color,
-    );
+    _strokeReady = false;
+    _lastSentTime = DateTime.now();
     setState(() {});
+
+    try {
+      await _scribbleService.createStroke(
+        _roomId,
+        _activeStrokeId!,
+        widget.userId,
+        _color,
+      );
+      _strokeReady = true;
+      await _scribbleService.appendPoints(
+        _roomId,
+        _activeStrokeId!,
+        _localPoints,
+      );
+      if (mounted) setState(() => _status = 'Connected — drawing as ${widget.userId}');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _status = 'Firebase error: $e');
+      }
+    }
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
+    if (_activeStrokeId == null || !_strokeReady) return;
+
     _localPoints.add(details.localPosition);
     setState(() {});
 
@@ -62,52 +119,90 @@ class _ScribbleCanvasState extends State<ScribbleCanvas> {
     }
   }
 
-  void _onPanEnd(DragEndDetails details) {
-    if (_activeStrokeId == null) return;
+  Future<void> _onPanEnd(DragEndDetails details) async {
+    if (_activeStrokeId == null || !_strokeReady) return;
 
-    _scribbleService.appendPoints(_roomId, _activeStrokeId!, _localPoints);
-    _scribbleService.markStrokeComplete(_roomId, _activeStrokeId!);
+    await _scribbleService.appendPoints(_roomId, _activeStrokeId!, _localPoints);
+    await _scribbleService.markStrokeComplete(_roomId, _activeStrokeId!);
     _activeStrokeId = null;
+    _strokeReady = false;
     _localPoints = [];
     setState(() {});
   }
 
   void _subscribeToRemoteStrokes() {
-    _strokeSubscription =
-        _scribbleService.listenToStrokes(_roomId).listen((event) {
-      final data = event.snapshot.value as Map<dynamic, dynamic>?;
-      if (data == null) return;
+    _strokeSubscription = _scribbleService
+        .listenToStrokes(_roomId)
+        .listen(
+      (event) {
+        final data = event.snapshot.value as Map<dynamic, dynamic>?;
+        if (data == null) {
+          if (mounted) setState(() => _status = 'Connected — waiting for strokes');
+          return;
+        }
 
-      final updatedRemoteStrokes = <String, List<Offset>>{};
+        final updatedRemoteStrokes = <String, List<Offset>>{};
 
-      data.forEach((strokeId, strokeData) {
-        final strokeMap = strokeData as Map<dynamic, dynamic>;
-        final senderId = strokeMap['userId'];
-        if (senderId == widget.userId) return;
+        data.forEach((strokeId, strokeData) {
+          final strokeMap = strokeData as Map<dynamic, dynamic>;
+          final senderId = strokeMap['userId']?.toString();
+          if (senderId == widget.userId) return;
 
-        final rawPoints = strokeMap['points'] as List<dynamic>? ?? [];
-        final points = rawPoints
-            .map(
-              (p) => Offset(
-                (p['x'] as num).toDouble(),
-                (p['y'] as num).toDouble(),
-              ),
-            )
-            .toList();
+          updatedRemoteStrokes[strokeId.toString()] =
+              _parsePoints(strokeMap['points']);
+        });
 
-        updatedRemoteStrokes[strokeId as String] = points;
-      });
-
-      setState(() {
-        _remoteStrokes
-          ..clear()
-          ..addAll(updatedRemoteStrokes);
-      });
-    });
+        if (mounted) {
+          setState(() {
+            _remoteStrokes
+              ..clear()
+              ..addAll(updatedRemoteStrokes);
+            _status = 'Connected — ${updatedRemoteStrokes.length} remote stroke(s)';
+          });
+        }
+      },
+      onError: (error) {
+        if (mounted) {
+          setState(() => _status = 'Firebase denied: $error');
+        }
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final canvas = GestureDetector(
+      onPanStart: _onPanStart,
+      onPanUpdate: _onPanUpdate,
+      onPanEnd: _onPanEnd,
+      child: CustomPaint(
+        painter: ScribblePainter(_localPoints, _remoteStrokes),
+        size: Size.infinite,
+      ),
+    );
+
+    if (widget.embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            color: Colors.grey.shade200,
+            child: Text(
+              widget.userId,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(child: canvas),
+        ],
+      );
+    }
+
     return Material(
       color: Colors.white,
       child: SafeArea(
@@ -140,18 +235,30 @@ class _ScribbleCanvasState extends State<ScribbleCanvas> {
                 ],
               ),
             ),
-            const Divider(height: 1),
-            Expanded(
-              child: GestureDetector(
-                onPanStart: _onPanStart,
-                onPanUpdate: _onPanUpdate,
-                onPanEnd: _onPanEnd,
-                child: CustomPaint(
-                  painter: ScribblePainter(_localPoints, _remoteStrokes),
-                  size: Size.infinite,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'Both users must open Scribble on their device. '
+                'You draw blue; the other user sees red.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Text(
+                _status,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _status.contains('error') || _status.contains('denied')
+                      ? Colors.red
+                      : Colors.green.shade700,
+                  fontSize: 11,
                 ),
               ),
             ),
+            const Divider(height: 1),
+            Expanded(child: canvas),
           ],
         ),
       ),
