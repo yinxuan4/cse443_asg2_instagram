@@ -1,11 +1,21 @@
 // lib/screens/chat_screen.dart
 import 'package:flutter/material.dart';
+import '../config/user_config.dart';
 import '../models/chat_message.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/scribble_canvas.dart';
+import 'login_screen.dart';
+import 'scribble_demo_screen.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final String userId;
+  final String displayName;
+
+  const ChatScreen({
+    super.key,
+    required this.userId,
+    required this.displayName,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -14,18 +24,17 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  String _userId = 'userA';
 
-  // Mock initial data
-  List<ChatMessage> messages = [
-    ChatMessage(id: '1', text: 'Wei, you done with the software assignment?', isMe: false),
-    ChatMessage(id: '2', text: 'Not yet la, still debugging the flutter UI 😭', isMe: true),
-    ChatMessage(id: '3', text: 'Gila, due is this Sunday right?', isMe: false),
-    ChatMessage(id: '4', text: 'Ya man, stressing out rn.', isMe: true),
-    ChatMessage(id: '5', text: 'Wanna go mamak later? Get some teh o ais to chill', isMe: false),
-    ChatMessage(id: '6', text: 'Onzzzz. Need a screen break anyway.', isMe: true),
-    ChatMessage(id: '7', text: '10pm at the usual place?', isMe: false),
-    ChatMessage(id: '8', text: 'Cun. See ya later', isMe: true),
+  // Wei (userA) and Shuyi (userB) conversation — bubble side depends on logged-in user.
+  late List<ChatMessage> messages = [
+    ChatMessage(id: '1', text: 'Wei, you done with the software assignment?', senderId: 'userB'),
+    ChatMessage(id: '2', text: 'Not yet la, still debugging the flutter UI 😭', senderId: 'userA'),
+    ChatMessage(id: '3', text: 'Gila, due is this Sunday right?', senderId: 'userB'),
+    ChatMessage(id: '4', text: 'Ya man, stressing out rn.', senderId: 'userA'),
+    ChatMessage(id: '5', text: 'Wanna go mamak later? Get some teh o ais to chill', senderId: 'userB'),
+    ChatMessage(id: '6', text: 'Onzzzz. Need a screen break anyway.', senderId: 'userA'),
+    ChatMessage(id: '7', text: '10pm at the usual place?', senderId: 'userB'),
+    ChatMessage(id: '8', text: 'Cun. See ya later', senderId: 'userA'),
   ];
 
   // ==========================================
@@ -65,8 +74,8 @@ class _ChatScreenState extends State<ChatScreen> {
       messages.add(ChatMessage(
         id: DateTime.now().toString(),
         text: text,
-        isMe: true,
-        isEphemeral: true, // Triggering Requirement 2 for all new messages sent
+        senderId: widget.userId,
+        isEphemeral: true,
       ));
     });
 
@@ -93,6 +102,12 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  void _openScribbleDemo() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const ScribbleDemoScreen()),
+    );
+  }
+
   void _openScribble() {
     showModalBottomSheet(
       context: context,
@@ -100,13 +115,15 @@ class _ChatScreenState extends State<ChatScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => SizedBox(
         height: MediaQuery.of(context).size.height * 0.75,
-        child: ScribbleCanvas(userId: _userId),
+        child: ScribbleCanvas(userId: widget.userId),
       ),
     );
   }
 
-  void _switchUser(String userId) {
-    setState(() => _userId = userId);
+  void _logout() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+    );
   }
 
   @override
@@ -133,9 +150,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
+                    final message = messages[index];
                     return MessageBubble(
-                      message: messages[index],
-                      onExpire: () => _onMessageExpired(messages[index].id),
+                      message: message,
+                      isMe: message.senderId == widget.userId,
+                      onExpire: () => _onMessageExpired(message.id),
                     );
                   },
                 ),
@@ -155,7 +174,7 @@ class _ChatScreenState extends State<ChatScreen> {
       elevation: 0,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
-        onPressed: () {},
+        onPressed: _logout,
       ),
       title: Row(
         children: [
@@ -168,30 +187,37 @@ class _ChatScreenState extends State<ChatScreen> {
           const SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text('shuyi >', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              Text('shuyi.123', style: TextStyle(fontSize: 12, color: Colors.white70)),
+            children: [
+              Text(
+                '${partnerDisplayName(widget.userId)} >',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'You: ${displayNameFor(widget.userId)} (${widget.userId})',
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
+              ),
             ],
           ),
         ],
       ),
       actions: [
         PopupMenuButton<String>(
-          icon: const Icon(Icons.person_outline),
-          tooltip: 'Switch demo user',
-          onSelected: _switchUser,
+          icon: const Icon(Icons.more_vert),
+          onSelected: (value) {
+            if (value == 'split_demo') {
+              _openScribbleDemo();
+            } else if (value == 'logout') {
+              _logout();
+            }
+          },
           itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'userA',
-              child: Text(
-                'userA${_userId == 'userA' ? ' (active)' : ''}',
-              ),
+            const PopupMenuItem(
+              value: 'split_demo',
+              child: Text('Record demo (1 device only)'),
             ),
-            PopupMenuItem(
-              value: 'userB',
-              child: Text(
-                'userB${_userId == 'userB' ? ' (active)' : ''}',
-              ),
+            const PopupMenuItem(
+              value: 'logout',
+              child: Text('Switch account'),
             ),
           ],
         ),

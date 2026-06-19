@@ -10,13 +10,10 @@ class ScribbleService {
   final DatabaseReference _db;
 
   static DatabaseReference _databaseRef() {
-    if (kFirebaseDatabaseUrl != null) {
-      return FirebaseDatabase.instanceFor(
-        app: Firebase.app(),
-        databaseURL: kFirebaseDatabaseUrl!,
-      ).ref();
-    }
-    return FirebaseDatabase.instance.ref();
+    return FirebaseDatabase.instanceFor(
+      app: Firebase.app(),
+      databaseURL: kFirebaseDatabaseUrl,
+    ).ref();
   }
 
   String generateStrokeId(String roomId) =>
@@ -27,14 +24,17 @@ class ScribbleService {
     String strokeId,
     String userId,
     String color,
-  ) {
-    return _db.child('rooms/$roomId/strokes/$strokeId').set({
+  ) async {
+    await _db.child('rooms/$roomId/strokes/$strokeId').set({
       'userId': userId,
       'color': color,
       'isActive': true,
       'points': [],
     });
   }
+
+  DatabaseReference strokesRef(String roomId) =>
+      _db.child('rooms/$roomId/strokes');
 
   Future<void> appendPoints(
     String roomId,

@@ -5,11 +5,13 @@ import '../models/chat_message.dart';
 
 class MessageBubble extends StatefulWidget {
   final ChatMessage message;
+  final bool isMe;
   final VoidCallback onExpire;
 
   const MessageBubble({
     super.key,
     required this.message,
+    required this.isMe,
     required this.onExpire,
   });
 
@@ -58,12 +60,12 @@ class _MessageBubbleState extends State<MessageBubble> {
     }
 
     return Align(
-      alignment: widget.message.isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: widget.isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: widget.message.isMe ? const Color(0xFF8B5CF6) : const Color(0xFF1E004B),
+          color: widget.isMe ? const Color(0xFF8B5CF6) : const Color(0xFF1E004B),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
