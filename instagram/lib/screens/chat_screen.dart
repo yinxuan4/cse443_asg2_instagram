@@ -1,5 +1,6 @@
 // lib/screens/chat_screen.dart
 import 'package:flutter/material.dart';
+import 'package:instagram/models/moderation_rule.dart';
 import '../models/chat_message.dart';
 import '../widgets/message_bubble.dart';
 
@@ -16,12 +17,28 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // Mock initial data
   List<ChatMessage> messages = [
-    ChatMessage(id: '1', text: 'Wei, you done with the software assignment?', isMe: false),
-    ChatMessage(id: '2', text: 'Not yet la, still debugging the flutter UI 😭', isMe: true),
+    ChatMessage(
+      id: '1',
+      text: 'Wei, you done with the software assignment?',
+      isMe: false,
+    ),
+    ChatMessage(
+      id: '2',
+      text: 'Not yet la, still debugging the flutter UI 😭',
+      isMe: true,
+    ),
     ChatMessage(id: '3', text: 'Gila, due is this Sunday right?', isMe: false),
     ChatMessage(id: '4', text: 'Ya man, stressing out rn.', isMe: true),
-    ChatMessage(id: '5', text: 'Wanna go mamak later? Get some teh o ais to chill', isMe: false),
-    ChatMessage(id: '6', text: 'Onzzzz. Need a screen break anyway.', isMe: true),
+    ChatMessage(
+      id: '5',
+      text: 'Wanna go mamak later? Get some teh o ais to chill',
+      isMe: false,
+    ),
+    ChatMessage(
+      id: '6',
+      text: 'Onzzzz. Need a screen break anyway.',
+      isMe: true,
+    ),
     ChatMessage(id: '7', text: '10pm at the usual place?', isMe: false),
     ChatMessage(id: '8', text: 'Cun. See ya later', isMe: true),
   ];
@@ -29,48 +46,67 @@ class _ChatScreenState extends State<ChatScreen> {
   // ==========================================
   // REQUIREMENT 1: Real-Time Moderation Filter
   // ==========================================
-  final List<String> bannedWords = ['scam', 'hack', 'phishing'];
+  final List<ModerationRule> _rules = [
+    // 1. Scam & Security Rule
+    ModerationRule(
+      ViolationType.scam,
+      RegExp(r'\b(scam|phishing|hack(er|ing)?)\b', caseSensitive: false),
+      'Message blocked: Potential security threat detected.',
+    ),
+
+    // 2. Profanity Rule
+    ModerationRule(
+      ViolationType.profanity,
+      RegExp(r'\b(damn+|hell+|crap+?)\b', caseSensitive: false),
+      'Message blocked: Please keep the conversation clean.',
+    ),
+
+    // 3. Link Spam Rule
+    ModerationRule(
+      ViolationType.linkSpam,
+      RegExp(r'(https?:\/\/|www\.)[^\s]+', caseSensitive: false),
+      'Message blocked: External links are currently disabled.',
+    ),
+  ];
 
   void _sendMessage() {
     String text = _textController.text.trim();
     if (text.isEmpty) return;
 
-    // 1. Run the moderation filter
-    String normalizedText = text.toLowerCase();
-    bool isBlocked = false;
+    String? triggerWarning;
 
-    for (String word in bannedWords) {
-      if (normalizedText.contains(word)) {
-        isBlocked = true;
+    // The Regex Engine Loop
+    for (var rule in _rules) {
+      if (rule.pattern.hasMatch(text)) {
+        triggerWarning = rule.warningMessage;
         break;
       }
     }
 
-    if (isBlocked) {
-      // Alert the user and halt transmission
+    if (triggerWarning != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Message blocked: Contains inappropriate content.'),
+        SnackBar(
+          content: Text(triggerWarning),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
-      return; 
+      return;
     }
 
-    // 2. If safe, create message (Setting as ephemeral for demo purposes)
+    // If safe, create message
     setState(() {
-      messages.add(ChatMessage(
-        id: DateTime.now().toString(),
-        text: text,
-        isMe: true,
-        isEphemeral: true, // Triggering Requirement 2 for all new messages sent
-      ));
+      messages.add(
+        ChatMessage(
+          id: DateTime.now().toString(),
+          text: text,
+          isMe: true,
+          isEphemeral: true,
+        ),
+      );
     });
 
     _textController.clear();
-    
-    // Scroll to bottom
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -112,7 +148,10 @@ class _ChatScreenState extends State<ChatScreen> {
               Expanded(
                 child: ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     return MessageBubble(
@@ -135,10 +174,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () {},
-      ),
+      leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () {}),
       title: Row(
         children: [
           // ERROR FIXED HERE: Replaced NetworkImage with an Icon
@@ -151,8 +187,14 @@ class _ChatScreenState extends State<ChatScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
-              Text('shuyi >', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              Text('shuyi.123', style: TextStyle(fontSize: 12, color: Colors.white70)),
+              Text(
+                'shuyi >',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'shuyi.123',
+                style: TextStyle(fontSize: 12, color: Colors.white70),
+              ),
             ],
           ),
         ],
