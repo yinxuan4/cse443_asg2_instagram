@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
 import '../widgets/message_bubble.dart';
+import '../widgets/scribble_canvas.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -13,6 +14,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  String _userId = 'userA';
 
   // Mock initial data
   List<ChatMessage> messages = [
@@ -91,6 +93,22 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  void _openScribble() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: ScribbleCanvas(userId: _userId),
+      ),
+    );
+  }
+
+  void _switchUser(String userId) {
+    setState(() => _userId = userId);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -158,6 +176,25 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
       actions: [
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.person_outline),
+          tooltip: 'Switch demo user',
+          onSelected: _switchUser,
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'userA',
+              child: Text(
+                'userA${_userId == 'userA' ? ' (active)' : ''}',
+              ),
+            ),
+            PopupMenuItem(
+              value: 'userB',
+              child: Text(
+                'userB${_userId == 'userB' ? ' (active)' : ''}',
+              ),
+            ),
+          ],
+        ),
         IconButton(icon: const Icon(Icons.phone_outlined), onPressed: () {}),
         IconButton(icon: const Icon(Icons.videocam_outlined), onPressed: () {}),
         IconButton(icon: const Icon(Icons.info_outline), onPressed: () {}),
@@ -201,6 +238,12 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Scribble',
+            onPressed: _openScribble,
+            color: Colors.white,
+          ),
           IconButton(
             icon: const Icon(Icons.send),
             onPressed: _sendMessage,
