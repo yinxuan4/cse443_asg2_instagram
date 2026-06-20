@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
 import '../widgets/scribble_canvas.dart';
 
 /// Single-device demo: two panels (userA / userB) sync through Firebase.
@@ -9,41 +10,46 @@ class ScribbleDemoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.scaffoldBg,
       appBar: AppBar(
-        title: const Text('Split Demo'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        foregroundColor: Colors.white,
+        title: const Text('Split Demo'),
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text(
-              'Simulates 2 users on one screen for video recording. Real use: User A on one device, User B on another.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
-            ),
-          ),
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: ColoredBox(
-                    color: Colors.white,
-                    child: ScribbleCanvas(userId: 'userA', embedded: true),
+          Container(decoration: AppTheme.gradientBackground()),
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  'Draw on Wei’s side — Shuyi sees it live. For recording on one device.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 13,
                   ),
                 ),
-                Container(width: 1, color: Colors.grey.shade300),
-                Expanded(
-                  child: ColoredBox(
-                    color: Colors.white,
-                    child: ScribbleCanvas(userId: 'userB', embedded: true),
-                  ),
+              ),
+              Expanded(
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: ScribbleCanvas(userId: 'userA', embedded: true),
+                    ),
+                    Container(
+                      width: 1,
+                      color: AppTheme.bubbleMe.withValues(alpha: 0.35),
+                    ),
+                    const Expanded(
+                      child: ScribbleCanvas(userId: 'userB', embedded: true),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),

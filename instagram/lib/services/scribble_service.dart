@@ -49,6 +49,10 @@ class ScribbleService {
     return _db.child('rooms/$roomId/strokes/$strokeId/isActive').set(false);
   }
 
+  Future<void> clearCanvas(String roomId) {
+    return _db.child('rooms/$roomId/strokes').remove();
+  }
+
   Stream<DatabaseEvent> listenToStrokes(String roomId) =>
       _db.child('rooms/$roomId/strokes').onValue;
 }

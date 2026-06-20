@@ -1,7 +1,10 @@
 // lib/widgets/message_bubble.dart
-import 'package:flutter/material.dart';
 import 'dart:async';
+
+import 'package:flutter/material.dart';
+
 import '../models/chat_message.dart';
+import '../theme/app_theme.dart';
 
 class MessageBubble extends StatefulWidget {
   final ChatMessage message;
@@ -65,7 +68,7 @@ class _MessageBubbleState extends State<MessageBubble> {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: widget.isMe ? const Color(0xFF8B5CF6) : const Color(0xFF1E004B),
+          color: widget.isMe ? AppTheme.bubbleMe : AppTheme.bubbleOther,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
