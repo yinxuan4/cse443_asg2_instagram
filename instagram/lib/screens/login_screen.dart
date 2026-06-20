@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 import 'chat_screen.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -19,13 +20,7 @@ class LoginScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF2C0069), Color(0xFF4A00B4)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
+        decoration: AppTheme.gradientBackground(),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -101,7 +96,7 @@ class _UserCard extends StatelessWidget {
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: const Color(0xFF8B5CF6),
+                backgroundColor: AppTheme.bubbleMe,
                 child: Text(
                   title.split(' ').last,
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),

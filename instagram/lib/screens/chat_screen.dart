@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../config/user_config.dart';
 import '../models/chat_message.dart';
+import '../theme/app_theme.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/scribble_canvas.dart';
 import 'login_screen.dart';
@@ -113,8 +114,10 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => SizedBox(
-        height: MediaQuery.of(context).size.height * 0.75,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.78,
+        decoration: AppTheme.scribbleSheetDecoration(),
+        clipBehavior: Clip.antiAlias,
         child: ScribbleCanvas(userId: widget.userId),
       ),
     );
@@ -134,13 +137,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           // Background Gradient
           Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF2C0069), Color(0xFF4A00B4)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
+            decoration: AppTheme.gradientBackground(),
           ),
           Column(
             children: [
@@ -178,25 +175,31 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       title: Row(
         children: [
-          // ERROR FIXED HERE: Replaced NetworkImage with an Icon
           const CircleAvatar(
             radius: 16,
             backgroundColor: Colors.grey,
             child: Icon(Icons.person, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${partnerDisplayName(widget.userId)} >',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'You: ${displayNameFor(widget.userId)} (${widget.userId})',
-                style: const TextStyle(fontSize: 12, color: Colors.white70),
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${partnerDisplayName(widget.userId)} >',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                Text(
+                  'You: ${displayNameFor(widget.userId)}',
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -221,9 +224,6 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
-        IconButton(icon: const Icon(Icons.phone_outlined), onPressed: () {}),
-        IconButton(icon: const Icon(Icons.videocam_outlined), onPressed: () {}),
-        IconButton(icon: const Icon(Icons.info_outline), onPressed: () {}),
       ],
     );
   }
@@ -237,7 +237,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Container(
             decoration: const BoxDecoration(
-              color: Color(0xFF8B5CF6),
+              color: AppTheme.bubbleMe,
               shape: BoxShape.circle,
             ),
             child: IconButton(
@@ -250,13 +250,15 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFF2C0069),
+                color: AppTheme.gradientStart,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: TextField(
                 controller: _textController,
-                decoration: const InputDecoration(
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
                   hintText: 'Message...',
+                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                   border: InputBorder.none,
                 ),
                 onSubmitted: (_) => _sendMessage(),
