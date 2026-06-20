@@ -71,7 +71,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _sendMessage() {
     String text = _textController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      return;
+    }
 
     String? triggerWarning;
 
