@@ -1,10 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:instagram/models/moderation_rule.dart';
+import '../config/user_config.dart';
 import '../models/chat_message.dart';
+import '../theme/app_theme.dart';
 import '../widgets/message_bubble.dart';
+import '../widgets/scribble_canvas.dart';
+import 'login_screen.dart';
+import 'scribble_demo_screen.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final String userId;
+  final String displayName;
+
+  const ChatScreen({
+    super.key,
+    required this.userId,
+    required this.displayName,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -119,6 +131,41 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  // Callback to handle when a message self-destructs
+  void _onMessageExpired(String id) {
+    setState(() {
+      final msg = messages.firstWhere((m) => m.id == id);
+      msg.isVisible = false;
+      msg.text = "[Message Expired]";
+    });
+  }
+
+  void _openScribbleDemo() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const ScribbleDemoScreen()),
+    );
+  }
+
+  void _openScribble() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.78,
+        decoration: AppTheme.scribbleSheetDecoration(),
+        clipBehavior: Clip.antiAlias,
+        child: ScribbleCanvas(userId: widget.userId),
+      ),
+    );
+  }
+
+  void _logout() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -126,13 +173,7 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF2C0069), Color(0xFF4A00B4)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
+            decoration: AppTheme.gradientBackground(),
           ),
           Column(
             children: [
@@ -145,8 +186,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
+                    final message = messages[index];
                     return MessageBubble(
-                      message: messages[index],
+                      message: message,
+                      isMe: message.senderId == widget.userId,
+                      onExpire: () => _onMessageExpired(message.id),
                     );
                   },
                 ),
@@ -163,7 +207,10 @@ class _ChatScreenState extends State<ChatScreen> {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () {}),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: _logout,
+      ),
       title: Row(
         children: [
           const CircleAvatar(
@@ -172,25 +219,49 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Icon(Icons.person, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'shuyi >',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'shuyi.123',
-                style: TextStyle(fontSize: 12, color: Colors.white70),
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  partnerDisplayName(widget.userId),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                Text(
+                  'You: ${displayNameFor(widget.userId)}',
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
+            ),
           ),
         ],
       ),
       actions: [
-        IconButton(icon: const Icon(Icons.phone_outlined), onPressed: () {}),
-        IconButton(icon: const Icon(Icons.videocam_outlined), onPressed: () {}),
-        IconButton(icon: const Icon(Icons.info_outline), onPressed: () {}),
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          onSelected: (value) {
+            if (value == 'split_demo') {
+              _openScribbleDemo();
+            } else if (value == 'logout') {
+              _logout();
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'split_demo',
+              child: Text('Record demo (1 device only)'),
+            ),
+            const PopupMenuItem(
+              value: 'logout',
+              child: Text('Switch account'),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -203,7 +274,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Container(
             decoration: const BoxDecoration(
-              color: Color(0xFF8B5CF6),
+              color: AppTheme.bubbleMe,
               shape: BoxShape.circle,
             ),
             child: IconButton(
@@ -216,13 +287,15 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFF2C0069),
+                color: AppTheme.gradientStart,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: TextField(
                 controller: _textController,
-                decoration: const InputDecoration(
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
                   hintText: 'Message...',
+                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                   border: InputBorder.none,
                 ),
                 onSubmitted: (_) => _sendMessage(),
@@ -230,6 +303,12 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Scribble',
+            onPressed: _openScribble,
+            color: Colors.white,
+          ),
           IconButton(
             icon: const Icon(Icons.send),
             onPressed: _sendMessage,

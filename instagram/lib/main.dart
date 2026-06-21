@@ -1,8 +1,11 @@
-// lib/main.dart
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'screens/chat_screen.dart';
+import 'screens/login_screen.dart';
+import 'theme/app_theme.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const InstagramChatApp());
 }
 
@@ -15,9 +18,9 @@ class InstagramChatApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF1A0033),
+        scaffoldBackgroundColor: AppTheme.scaffoldBg,
       ),
-      home: const ChatScreen(),
+      home: const LoginScreen(),
     );
   }
 }

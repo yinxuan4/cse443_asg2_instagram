@@ -1,14 +1,14 @@
 class ChatMessage {
   final String id;
   String text;
-  final bool isMe;
-  final bool isEphemeral; // Flag for Requirement 2
+  final String senderId;
+  final bool isEphemeral;
   bool isVisible;
 
   ChatMessage({
     required this.id,
     required this.text,
-    required this.isMe,
+    required this.senderId,
     this.isEphemeral = false,
     this.isVisible = true,
   });

@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
+import '../theme/app_theme.dart';
 
 class MessageBubble extends StatelessWidget {
   final ChatMessage message;
+  final bool isMe;
+  final VoidCallback onExpire;
 
   const MessageBubble({
     super.key,
     required this.message,
+    required this.isMe,
+    required this.onExpire,
   });
 
   @override
