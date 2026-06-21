@@ -1,5 +1,5 @@
-// lib/screens/chat_screen.dart
 import 'package:flutter/material.dart';
+import 'package:instagram/models/moderation_rule.dart';
 import '../config/user_config.dart';
 import '../models/chat_message.dart';
 import '../theme/app_theme.dart';
@@ -26,63 +26,100 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  // Wei (userA) and Shuyi (userB) conversation — bubble side depends on logged-in user.
-  late List<ChatMessage> messages = [
-    ChatMessage(id: '1', text: 'Wei, you done with the software assignment?', senderId: 'userB'),
-    ChatMessage(id: '2', text: 'Not yet la, still debugging the flutter UI 😭', senderId: 'userA'),
-    ChatMessage(id: '3', text: 'Gila, due is this Sunday right?', senderId: 'userB'),
-    ChatMessage(id: '4', text: 'Ya man, stressing out rn.', senderId: 'userA'),
-    ChatMessage(id: '5', text: 'Wanna go mamak later? Get some teh o ais to chill', senderId: 'userB'),
-    ChatMessage(id: '6', text: 'Onzzzz. Need a screen break anyway.', senderId: 'userA'),
-    ChatMessage(id: '7', text: '10pm at the usual place?', senderId: 'userB'),
-    ChatMessage(id: '8', text: 'Cun. See ya later', senderId: 'userA'),
+  // Mock initial data
+  List<ChatMessage> messages = [
+    ChatMessage(
+      id: '1',
+      text: 'Wei, you done with the software assignment?',
+      isMe: false,
+    ),
+    ChatMessage(
+      id: '2',
+      text: 'Not yet la, still debugging the flutter UI 😭',
+      isMe: true,
+    ),
+    ChatMessage(id: '3', text: 'Gila, due is this Sunday right?', isMe: false),
+    ChatMessage(id: '4', text: 'Ya man, stressing out rn.', isMe: true),
+    ChatMessage(
+      id: '5',
+      text: 'Wanna go mamak later? Get some teh o ais to chill',
+      isMe: false,
+    ),
+    ChatMessage(
+      id: '6',
+      text: 'Onzzzz. Need a screen break anyway.',
+      isMe: true,
+    ),
+    ChatMessage(id: '7', text: '10pm at the usual place?', isMe: false),
+    ChatMessage(id: '8', text: 'Cun. See ya later', isMe: true),
   ];
 
   // ==========================================
   // REQUIREMENT 1: Real-Time Moderation Filter
   // ==========================================
-  final List<String> bannedWords = ['scam', 'hack', 'phishing'];
+  final List<ModerationRule> _rules = [
+    // 1. Scam & Security Rule
+    ModerationRule(
+      ViolationType.scam,
+      RegExp(r'\b(scam|phishing|hack(er|ing)?)\b', caseSensitive: false),
+      'Message blocked: Potential security threat detected.',
+    ),
+
+    // 2. Profanity Rule
+    ModerationRule(
+      ViolationType.profanity,
+      RegExp(r'\b(damn+|hell+|crap+?)\b', caseSensitive: false),
+      'Message blocked: Please keep the conversation clean.',
+    ),
+
+    // 3. Link Spam Rule
+    ModerationRule(
+      ViolationType.linkSpam,
+      RegExp(r'(https?:\/\/|www\.)[^\s]+', caseSensitive: false),
+      'Message blocked: External links are currently disabled.',
+    ),
+  ];
 
   void _sendMessage() {
     String text = _textController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      return;
+    }
 
-    // 1. Run the moderation filter
-    String normalizedText = text.toLowerCase();
-    bool isBlocked = false;
+    String? triggerWarning;
 
-    for (String word in bannedWords) {
-      if (normalizedText.contains(word)) {
-        isBlocked = true;
+    // The Regex Engine Loop
+    for (var rule in _rules) {
+      if (rule.pattern.hasMatch(text)) {
+        triggerWarning = rule.warningMessage;
         break;
       }
     }
 
-    if (isBlocked) {
-      // Alert the user and halt transmission
+    if (triggerWarning != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Message blocked: Contains inappropriate content.'),
+        SnackBar(
+          content: Text(triggerWarning),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
-      return; 
+      return;
     }
 
-    // 2. If safe, create message (Setting as ephemeral for demo purposes)
+    // If safe, create message
     setState(() {
-      messages.add(ChatMessage(
-        id: DateTime.now().toString(),
-        text: text,
-        senderId: widget.userId,
-        isEphemeral: true,
-      ));
+      messages.add(
+        ChatMessage(
+          id: DateTime.now().toString(),
+          text: text,
+          isMe: true,
+          isEphemeral: false, // <-- CHANGED THIS TO FALSE TO DISABLE DESTRUCTION
+        ),
+      );
     });
 
     _textController.clear();
-    
-    // Scroll to bottom
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -135,7 +172,6 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: _buildAppBar(),
       body: Stack(
         children: [
-          // Background Gradient
           Container(
             decoration: AppTheme.gradientBackground(),
           ),
@@ -144,7 +180,10 @@ class _ChatScreenState extends State<ChatScreen> {
               Expanded(
                 child: ListView.builder(
                   controller: _scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index];
@@ -164,7 +203,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // --- APP BAR UI ---
   AppBar _buildAppBar() {
     return AppBar(
       backgroundColor: Colors.transparent,
@@ -228,7 +266,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // --- BOTTOM INPUT UI ---
   Widget _buildBottomInput() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
